@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="วิเคราะห์ MBTI ของ Reddit Community แบบ Real-time ด้วย NLP Parallel Processing">
+    <title>Reddit MBTI Analyzer — Community Personality Dashboard</title>
+    <link rel="stylesheet" href="/static/reddit_style.css">
+    <link rel="stylesheet" href="/static/nav.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+</head>
+<body class="has-nav">
+
+    <!-- Mode Switcher Nav -->
+    <nav class="mode-nav">
+        <a href="/" class="nav-pill active">📊 Reddit Analyzer</a>
+        <span class="nav-divider"></span>
+        <a href="/text" class="nav-pill">🧠 Text Predictor</a>
+    </nav>
+
+    <!-- Animated Background -->
+    <div class="bg-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="error-toast" id="errorToast"></div>
+
+    <div class="app-container">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-badge">
+                <span class="pulse-dot"></span>
+                Parallel NLP Processing
+            </div>
+            <h1>Reddit MBTI Analyzer</h1>
+            <p>วิเคราะห์บุคลิกภาพ MBTI ของ Reddit Community แบบ Real-time — กรอกลิงก์ subreddit แล้วดู dashboard อัปเดตสด</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="input-card" id="inputCard">
+            <div class="input-row">
+                <input
+                    type="text"
+                    class="url-input"
+                    id="urlInput"
+                    placeholder="r/python  หรือ  https://www.reddit.com/r/python/"
+                    spellcheck="false"
+                    autocomplete="off"
+                >
+                <button class="analyze-btn" id="analyzeBtn">
+                    <span class="spinner"></span>
+                    <span class="btn-text">🔍 วิเคราะห์</span>
+                </button>
+                <button class="analyze-btn stop-btn" id="stopBtn" style="display:none; background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <span class="btn-text">⏹ หยุด</span>
+                </button>
+            </div>
+            <div class="quick-examples">
+                <span>ลองเลย:</span>
+                <button class="example-chip" data-sub="mbti">🧠 r/mbti</button>
+                <button class="example-chip" data-sub="python">🐍 r/python</button>
+                <button class="example-chip" data-sub="philosophy">💭 r/philosophy</button>
+                <button class="example-chip" data-sub="science">🔬 r/science</button>
+                <button class="example-chip" data-sub="gaming">🎮 r/gaming</button>
+                <button class="example-chip" data-sub="books">📚 r/books</button>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-card">
+                <div class="progress-header">
+                    <div class="progress-status">
+                        <span class="status-dot"></span>
+                        <span id="progressText">กำลังเริ่มต้น...</span>
+                    </div>
+                    <span class="progress-count" id="progressCount">0 / 0</span>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard" id="dashboard">
+
+            <!-- Stats Row -->
+            <div class="stats-row stats-row-5">
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">Total Analyzed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💬</div>
+                    <div class="stat-value" id="statComments">0</div>
+                    <div class="stat-label">Comments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🏆</div>
+                    <div class="stat-value" id="statTopType">—</div>
+                    <div class="stat-label">Most Common MBTI</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔤</div>
+                    <div class="stat-value" id="statTopWord">—</div>
+                    <div class="stat-label">Most Used Word</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-value" id="statSubreddit">—</div>
+                    <div class="stat-label">Community</div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="charts-grid">
+                <!-- MBTI Distribution Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">📈 MBTI Type Distribution</div>
+                            <div class="chart-subtitle">จำนวนแต่ละ type ที่พบในโพสต์</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mbtiChart" width="560" height="300"></canvas>
+                    </div>
+                </div>
+
+                <!-- Word Frequency -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <div class="chart-title">🔤 Top Words</div>
+                            <div class="chart-subtitle">คำที่ใช้บ่อยที่สุด (หลังลบ stop words)</div>
+                        </div>
+                    </div>
+                    <div class="word-bar-list" id="wordBars"></div>
+                </div>
+            </div>
+
+            <!-- Dimension Analysis -->
+            <div class="dimensions-section">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">🧬 Dimension Analysis</div>
+                        <div class="chart-subtitle">สัดส่วนแต่ละ dimension ของ community</div>
+                    </div>
+                </div>
+                <div class="dim-grid" id="dimGrid">
+                    <div class="dim-item" data-dim="EI">
+                        <div class="dim-pair">
+                            <span><span class="dim-letter active">E</span> <span class="dim-pct" id="dimE">50%</span></span>
+                            <span><span class="dim-pct" id="dimI">50%</span> <span class="dim-letter inactive">I</span></span>
+                        </div>
+                        <div class="dim-bar-track">
+                            <div class="dim-bar-fill fill-EI" id="dimBarEI" style="width:50%"></div>
+                        </div>
+                        <div class="dim-label">Extraversion / Introversion</div>
+                    </div>
+                    <div class="dim-item" data-dim="NS">
+                        <div class="dim-pair">
+                            <span><span class="dim-letter active">N</span> <span class="dim-pct" id="dimN">50%</span></span>
+                            <span><span class="dim-pct" id="dimS">50%</span> <span class="dim-letter inactive">S</span></span>
+                        </div>
+                        <div class="dim-bar-track">
+                            <div class="dim-bar-fill fill-NS" id="dimBarNS" style="width:50%"></div>
+                        </div>
+                        <div class="dim-label">Intuition / Sensing</div>
+                    </div>
+                    <div class="dim-item" data-dim="TF">
+                        <div class="dim-pair">
+                            <span><span class="dim-letter active">T</span> <span class="dim-pct" id="dimT">50%</span></span>
+                            <span><span class="dim-pct" id="dimF">50%</span> <span class="dim-letter inactive">F</span></span>
+                        </div>
+                        <div class="dim-bar-track">
+                            <div class="dim-bar-fill fill-TF" id="dimBarTF" style="width:50%"></div>
+                        </div>
+                        <div class="dim-label">Thinking / Feeling</div>
+                    </div>
+                    <div class="dim-item" data-dim="JP">
+                        <div class="dim-pair">
+                            <span><span class="dim-letter active">J</span> <span class="dim-pct" id="dimJ">50%</span></span>
+                            <span><span class="dim-pct" id="dimP">50%</span> <span class="dim-letter inactive">P</span></span>
+                        </div>
+                        <div class="dim-bar-track">
+                            <div class="dim-bar-fill fill-JP" id="dimBarJP" style="width:50%"></div>
+                        </div>
+                        <div class="dim-label">Judging / Perceiving</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marketing Strategy Section (Expanded) -->
+            <div class="marketing-section" id="marketingSection" style="display:none;">
+                <!-- Section Header -->
+                <div class="chart-header" style="margin-bottom:24px;">
+                    <div>
+                        <div class="chart-title" style="font-size:1.2rem;">📈 กลยุทธ์การตลาดสำหรับ Community นี้</div>
+                        <div class="chart-subtitle">Marketing Strategy ตาม MBTI ที่พบมากที่สุด — <span id="mktTargetType" style="color:#c4b5fd;font-weight:700;"></span></div>
+                    </div>
+                </div>
+
+                <!-- 1) Community Personality Profile -->
+                <div class="mkt-card" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:14px;padding:22px 24px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                        <span style="font-size:2rem;" id="mktEmoji">🧠</span>
+                        <div>
+                            <div style="font-weight:800;font-size:1.15rem;color:var(--text-primary);" id="mktTypeTitle">—</div>
+                            <div style="font-size:0.78rem;color:var(--text-muted);">Community Personality Profile</div>
+                        </div>
+                    </div>
+                    <p id="mktTraits" style="color:var(--text-secondary);line-height:1.75;font-size:0.9rem;margin:0;"></p>
+                </div>
+
+                <!-- 2) Top 3 MBTI Types Breakdown -->
+                <div class="mkt-card" style="background:rgba(34,211,238,0.04);border:1px solid rgba(34,211,238,0.12);border-radius:14px;padding:22px 24px;margin-bottom:16px;">
+                    <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;color:var(--text-primary);">🏆 Top 3 MBTI Types ใน Community</div>
+                    <div id="mktTop3" style="display:flex;flex-direction:column;gap:10px;"></div>
+                </div>
+
+                <!-- 3) Approach Card -->
+                <div class="mkt-card" style="background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.12);border-radius:14px;padding:22px 24px;margin-bottom:16px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <span style="font-size:1.3rem;">🎯</span>
+                        <div>
+                            <div style="font-weight:700;font-size:1rem;color:var(--text-primary);">แนวทางการเข้าถึงกลุ่มเป้าหมาย</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);">Marketing Approach</div>
+                        </div>
+                    </div>
+                    <p id="mktApproach" style="color:var(--text-secondary);line-height:1.75;font-size:0.9rem;margin:0;"></p>
+                </div>
+
+                <!-- 4) Do / Don't Grid -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                    <div class="mkt-card" style="background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.15);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:14px;color:#34d399;">✅ สิ่งที่ควรทำ (Do's)</div>
+                        <ul id="mktDoList" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;"></ul>
+                    </div>
+                    <div class="mkt-card" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:14px;color:#f87171;">❌ สิ่งที่ไม่ควรทำ (Don'ts)</div>
+                        <ul id="mktDontList" style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;"></ul>
+                    </div>
+                </div>
+
+                <!-- 5) Content Style + Buying Trigger -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                    <div class="mkt-card" style="background:rgba(56,189,248,0.05);border:1px solid rgba(56,189,248,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#38bdf8;">📝 รูปแบบเนื้อหาที่เหมาะ</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Content Style</div>
+                        <p id="mktContentStyle" style="color:var(--text-secondary);line-height:1.7;font-size:0.88rem;margin:0;"></p>
+                    </div>
+                    <div class="mkt-card" style="background:rgba(251,146,60,0.05);border:1px solid rgba(251,146,60,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#fb923c;">🎯 สิ่งที่กระตุ้นการซื้อ</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Buying Triggers</div>
+                        <p id="mktBuyingTrigger" style="color:var(--text-secondary);line-height:1.7;font-size:0.88rem;margin:0;"></p>
+                    </div>
+                </div>
+
+                <!-- 6) Communication + Work Style -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                    <div class="mkt-card" style="background:rgba(196,181,253,0.05);border:1px solid rgba(196,181,253,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#c4b5fd;">💬 วิธีสื่อสารกับกลุ่มนี้</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Communication Style</div>
+                        <p id="mktComm" style="color:var(--text-secondary);line-height:1.7;font-size:0.88rem;margin:0;"></p>
+                    </div>
+                    <div class="mkt-card" style="background:rgba(244,114,182,0.05);border:1px solid rgba(244,114,182,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#f472b6;">💼 วิธีการทำงานของกลุ่มนี้</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">Work Style Insights</div>
+                        <p id="mktWork" style="color:var(--text-secondary);line-height:1.7;font-size:0.88rem;margin:0;"></p>
+                    </div>
+                </div>
+
+                <!-- 7) Audience Careers + Strengths/Weaknesses -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div class="mkt-card" style="background:rgba(52,211,153,0.04);border:1px solid rgba(52,211,153,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#34d399;">🧑‍💼 อาชีพของกลุ่มเป้าหมาย</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Target Audience Careers</div>
+                        <div id="mktCareers" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    </div>
+                    <div class="mkt-card" style="background:rgba(251,191,36,0.04);border:1px solid rgba(251,191,36,0.12);border-radius:14px;padding:20px 22px;">
+                        <div style="font-weight:700;font-size:0.92rem;margin-bottom:10px;color:#fbbf24;">⚡ จุดแข็ง & จุดอ่อนของกลุ่มนี้</div>
+                        <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Audience Strengths & Weaknesses</div>
+                        <div id="mktSW" style="display:flex;flex-direction:column;gap:6px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Posts & Comments Table -->
+            <div class="posts-section">
+                <div class="chart-header">
+                    <div>
+                        <div class="chart-title">📋 Analyzed Posts & Comments</div>
+                        <div class="chart-subtitle">โพสต์และคอมเมนต์ที่วิเคราะห์แล้ว</div>
+                    </div>
+                </div>
+                <div class="posts-table-wrapper">
+                    <table class="posts-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Type</th>
+                                <th>Title / Comment</th>
+                                <th>Author</th>
+                                <th>MBTI</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="postsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <footer class="app-footer">
+            <p>Built with 🧠 SGDClassifier + TF-IDF • Parallel NLP Processing • Real-time SSE Dashboard</p>
+        </footer>
+    </div>
+
+<script>
+// ========== DOM Elements ==========
+const urlInput = document.getElementById('urlInput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const progressSection = document.getElementById('progressSection');
+const progressText = document.getElementById('progressText');
+const progressCount = document.getElementById('progressCount');
+const progressBar = document.getElementById('progressBar');
+const dashboard = document.getElementById('dashboard');
+const errorToast = document.getElementById('errorToast');
+
+// Stats
+const statTotal = document.getElementById('statTotal');
+const statTopType = document.getElementById('statTopType');
+const statTopWord = document.getElementById('statTopWord');
+const statSubreddit = document.getElementById('statSubreddit');
+
+// Chart
+const mbtiCanvas = document.getElementById('mbtiChart');
+const mbtiCtx = mbtiCanvas.getContext('2d');
+
+// Posts table
+const postsBody = document.getElementById('postsBody');
+
+// Word bars
+const wordBarsContainer = document.getElementById('wordBars');
+
+// ========== State ==========
+let currentEventSource = null;
+let currentJobId = null;
+let allPosts = [];
+
+// ========== MBTI Colors ==========
+const MBTI_COLORS = {
+    'INTJ': '#6366f1', 'INTP': '#818cf8', 'ENTJ': '#8b5cf6', 'ENTP': '#a78bfa',
+    'INFJ': '#c084fc', 'INFP': '#e879f9', 'ENFJ': '#f472b6', 'ENFP': '#fb7185',
+    'ISTJ': '#38bdf8', 'ISFJ': '#22d3ee', 'ESTJ': '#2dd4bf', 'ESFJ': '#34d399',
+    'ISTP': '#4ade80', 'ISFP': '#a3e635', 'ESTP': '#facc15', 'ESFP': '#fb923c',
+};
+
+const ALL_TYPES = [
+    'INTJ','INTP','ENTJ','ENTP',
+    'INFJ','INFP','ENFJ','ENFP',
+    'ISTJ','ISFJ','ESTJ','ESFJ',
+    'ISTP','ISFP','ESTP','ESFP'
+];
+
+// ========== Quick Example Chips ==========
+document.querySelectorAll('.example-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        urlInput.value = 'r/' + chip.dataset.sub;
+        urlInput.focus();
+    });
+});
+
+// ========== Enter key ==========
+urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !analyzeBtn.disabled) startAnalysis();
+});
+
+// ========== Analyze Button ==========
+analyzeBtn.addEventListener('click', startAnalysis);
+
+// ========== Stop Button ==========
+const stopBtn = document.getElementById('stopBtn');
+stopBtn.addEventListener('click', stopAnalysis);
+
+async function stopAnalysis() {
+    if (!currentJobId) return;
+    stopBtn.disabled = true;
+    stopBtn.querySelector('.btn-text').textContent = '⏳ กำลังหยุด...';
+    try {
+        await fetch(`/api/stop/${currentJobId}`, { method: 'POST' });
+    } catch(e) { /* ignore */ }
+}
+
+async function startAnalysis() {
+    const input = urlInput.value.trim();
+    if (!input) {
+        showError('กรุณาใส่ชื่อ subreddit หรือ URL');
+        return;
+    }
+
+    // Reset UI
+    analyzeBtn.classList.add('loading');
+    analyzeBtn.disabled = true;
+    analyzeBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-flex';
+    stopBtn.disabled = false;
+    stopBtn.querySelector('.btn-text').textContent = '⏹ หยุด';
+    progressSection.classList.add('visible');
+    dashboard.classList.remove('visible');
+    progressBar.style.width = '5%';
+    progressText.textContent = 'กำลังเริ่มต้น...';
+    progressCount.textContent = '';
+    postsBody.innerHTML = '';
+    allPosts = [];
+
+    // Close previous SSE
+    if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+    }
+
+    try {
+        const res = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: input })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            showError(data.error || 'เกิดข้อผิดพลาด');
+            resetBtn();
+            return;
+        }
+
+        statSubreddit.textContent = 'r/' + data.subreddit;
+        animateValue(statSubreddit);
+        currentJobId = data.job_id;
+
+        // Start SSE
+        connectSSE(data.job_id);
+
+    } catch (err) {
+        showError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+        resetBtn();
+    }
+}
+
+function resetBtn() {
+    analyzeBtn.classList.remove('loading');
+    analyzeBtn.disabled = false;
+    analyzeBtn.style.display = 'inline-flex';
+    stopBtn.style.display = 'none';
+    currentJobId = null;
+}
+
+// ========== SSE Connection ==========
+function connectSSE(jobId) {
+    const evtSource = new EventSource(`/api/stream/${jobId}`);
+    currentEventSource = evtSource;
+
+    evtSource.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+
+        switch (msg.type) {
+            case 'status':
+                progressText.textContent = msg.data.message;
+                if (msg.data.phase === 'analyzing') {
+                    dashboard.classList.add('visible');
+                }
+                break;
+
+            case 'progress':
+                handleProgress(msg.data);
+                break;
+
+            case 'complete':
+                progressText.textContent = '✅ ' + msg.data.message;
+                progressBar.style.width = '100%';
+                resetBtn();
+                evtSource.close();
+                break;
+
+            case 'error':
+                showError(msg.data.message);
+                progressSection.classList.remove('visible');
+                resetBtn();
+                evtSource.close();
+                break;
+
+            case 'timeout':
+                showError('การวิเคราะห์ใช้เวลานานเกินไป');
+                resetBtn();
+                evtSource.close();
+                break;
+        }
+    };
+
+    evtSource.onerror = () => {
+        evtSource.close();
+        resetBtn();
+    };
+}
+
+// ========== Handle Progress Updates ==========
+function handleProgress(data) {
+    const totalProcessed = data.total_processed || 0;
+    const totalScraped = data.total_scraped || 0;
+    const totalComments = data.total_comments || 0;
+    const round = data.round || '?';
+    const sortMode = data.sort_mode || '';
+    
+    // Animated pulsing bar for continuous mode
+    progressBar.style.width = '100%';
+    progressText.textContent = `🔄 Round ${round} (${sortMode}) — วิเคราะห์แล้ว ${totalProcessed} รายการ (${totalScraped} โพสต์ + ${totalComments} คอมเมนต์)`;
+    progressCount.textContent = `${totalProcessed} analyzed / ${totalScraped} posts / ${totalComments} comments`;
+
+    // Update stats
+    statTotal.textContent = totalProcessed;
+    animateValue(statTotal);
+
+    // Update comment count
+    const statComments = document.getElementById('statComments');
+    if (statComments) {
+        statComments.textContent = totalComments;
+        animateValue(statComments);
+    }
+
+    if (data.top_type) {
+        statTopType.textContent = data.top_type.type;
+        animateValue(statTopType);
+    }
+
+    if (data.top_word && data.top_word[0]) {
+        statTopWord.textContent = data.top_word[0];
+        animateValue(statTopWord);
+    }
+
+    // Update MBTI chart
+    drawMBTIChart(data.type_distribution);
+
+    // Update word bars
+    updateWordBars(data.word_frequencies);
+
+    // Update dimension bars
+    if (data.dim_ratios) {
+        updateDimensions(data.dim_ratios);
+    }
+
+    // Update marketing strategy
+    if (data.marketing && data.top_type) {
+        renderMarketing(data.marketing, data.top_type, data.top3_profiles || []);
+    }
+
+    // Update posts table
+    if (data.batch_results) {
+        addPostRows(data.batch_results);
+    }
+}
+
+// ========== Render Marketing Strategy (Expanded) ==========
+function renderMarketing(mkt, topType, top3) {
+    const section = document.getElementById('marketingSection');
+    if (!mkt || !mkt.approach) { section.style.display = 'none'; return; }
+    
+    section.style.display = 'block';
+    
+    // Header
+    document.getElementById('mktTargetType').textContent = 
+        `${topType.emoji || '🧠'} ${topType.type} "${topType.nickname}" (${topType.count} โพสต์)`;
+    
+    // 1) Community personality profile
+    document.getElementById('mktEmoji').textContent = topType.emoji || '🧠';
+    document.getElementById('mktTypeTitle').textContent = 
+        `${topType.type} — "${topType.nickname}"`;
+    document.getElementById('mktTraits').textContent = topType.traits || '';
+    
+    // 2) Top 3 types breakdown
+    const top3Container = document.getElementById('mktTop3');
+    top3Container.innerHTML = '';
+    const medals = ['🥇', '🥈', '🥉'];
+    const barColors = ['linear-gradient(90deg,#8b5cf6,#ec4899)', 'linear-gradient(90deg,#22d3ee,#8b5cf6)', 'linear-gradient(90deg,#34d399,#60a5fa)'];
+    
+    top3.forEach((t, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:12px;';
+        const maxPct = top3[0]?.pct || 1;
+        const barW = Math.max((t.pct / maxPct) * 100, 8);
+        row.innerHTML = `
+            <span style="font-size:1.2rem;min-width:28px;">${medals[i] || ''}</span>
+            <span style="font-family:var(--font-display);font-weight:800;font-size:1rem;min-width:48px;color:var(--text-primary);">${escapeHtml(t.type)}</span>
+            <span style="font-size:0.78rem;color:var(--text-muted);min-width:110px;">${escapeHtml(t.nickname)}</span>
+            <div style="flex:1;height:22px;background:rgba(255,255,255,0.04);border-radius:6px;overflow:hidden;position:relative;">
+                <div style="width:${barW}%;height:100%;background:${barColors[i]};border-radius:6px;display:flex;align-items:center;padding-left:8px;transition:width 0.6s ease;">
+                    <span style="font-family:var(--font-mono);font-size:0.72rem;color:rgba(255,255,255,0.9);font-weight:600;">${t.count}</span>
+                </div>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--text-secondary);min-width:50px;text-align:right;">${t.pct}%</span>
+        `;
+        top3Container.appendChild(row);
+    });
+    
+    // 3) Approach
+    document.getElementById('mktApproach').textContent = mkt.approach;
+    
+    // 4) Do list
+    const doList = document.getElementById('mktDoList');
+    doList.innerHTML = '';
+    (mkt.do || []).forEach(item => {
+        const li = document.createElement('li');
+        li.style.cssText = 'color:var(--text-secondary);font-size:0.88rem;line-height:1.65;padding-left:1.4em;position:relative;';
+        li.innerHTML = `<span style="position:absolute;left:0;color:#34d399;font-weight:700;">✓</span> ${escapeHtml(item)}`;
+        doList.appendChild(li);
+    });
+    
+    // Don't list
+    const dontList = document.getElementById('mktDontList');
+    dontList.innerHTML = '';
+    (mkt.dont || []).forEach(item => {
+        const li = document.createElement('li');
+        li.style.cssText = 'color:var(--text-secondary);font-size:0.88rem;line-height:1.65;padding-left:1.4em;position:relative;';
+        li.innerHTML = `<span style="position:absolute;left:0;color:#f87171;font-weight:700;">✗</span> ${escapeHtml(item)}`;
+        dontList.appendChild(li);
+    });
+    
+    // 5) Content style + buying trigger
+    document.getElementById('mktContentStyle').textContent = mkt.content_style || '';
+    document.getElementById('mktBuyingTrigger').textContent = mkt.buying_trigger || '';
+    
+    // 6) Communication + Work style (from top type in top3)
+    const mainProfile = top3[0] || {};
+    document.getElementById('mktComm').textContent = mainProfile.communication || '';
+    document.getElementById('mktWork').textContent = mainProfile.work_style || '';
+    
+    // 7) Careers
+    const careersDiv = document.getElementById('mktCareers');
+    careersDiv.innerHTML = '';
+    (mainProfile.careers || []).forEach(c => {
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-block;padding:5px 14px;border-radius:100px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);color:#34d399;font-size:0.8rem;font-weight:500;';
+        tag.textContent = c;
+        careersDiv.appendChild(tag);
+    });
+    
+    // Strengths & Weaknesses
+    const swDiv = document.getElementById('mktSW');
+    swDiv.innerHTML = '';
+    (mainProfile.strengths || []).slice(0, 3).forEach(s => {
+        const el = document.createElement('div');
+        el.style.cssText = 'font-size:0.82rem;line-height:1.55;color:var(--text-secondary);padding-left:1.3em;position:relative;';
+        el.innerHTML = `<span style="position:absolute;left:0;color:#34d399;">💪</span> ${escapeHtml(s)}`;
+        swDiv.appendChild(el);
+    });
+    (mainProfile.weaknesses || []).slice(0, 2).forEach(w => {
+        const el = document.createElement('div');
+        el.style.cssText = 'font-size:0.82rem;line-height:1.55;color:var(--text-secondary);padding-left:1.3em;position:relative;';
+        el.innerHTML = `<span style="position:absolute;left:0;color:#fbbf24;">⚠️</span> ${escapeHtml(w)}`;
+        swDiv.appendChild(el);
+    });
+}
+
+// ========== Escape HTML ==========
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ========== Animate Value ==========
+function animateValue(el) {
+    el.classList.add('updating');
+    setTimeout(() => el.classList.remove('updating'), 400);
+}
+
+// ========== Draw MBTI Distribution Chart ==========
+function drawMBTIChart(distribution) {
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = mbtiCanvas.parentElement.clientWidth;
+    const displayHeight = 300;
+
+    mbtiCanvas.width = displayWidth * dpr;
+    mbtiCanvas.height = displayHeight * dpr;
+    mbtiCanvas.style.width = displayWidth + 'px';
+    mbtiCanvas.style.height = displayHeight + 'px';
+    mbtiCtx.scale(dpr, dpr);
+
+    const ctx = mbtiCtx;
+    const W = displayWidth;
+    const H = displayHeight;
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    const types = ALL_TYPES;
+    const counts = types.map(t => distribution[t] || 0);
+    const maxCount = Math.max(...counts, 1);
+
+    const padding = { top: 20, right: 20, bottom: 50, left: 40 };
+    const chartW = W - padding.left - padding.right;
+    const chartH = H - padding.top - padding.bottom;
+    const barWidth = chartW / types.length * 0.65;
+    const gap = chartW / types.length;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = padding.top + chartH - (chartH / 4 * i);
+        ctx.beginPath();
+        ctx.moveTo(padding.left, y);
+        ctx.lineTo(W - padding.right, y);
+        ctx.stroke();
+
+        // Y-axis labels
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(Math.round(maxCount / 4 * i), padding.left - 8, y + 3);
+    }
+
+    // Bars
+    types.forEach((type, i) => {
+        const x = padding.left + gap * i + (gap - barWidth) / 2;
+        const barH = counts[i] > 0 ? (counts[i] / maxCount) * chartH : 0;
+        const y = padding.top + chartH - barH;
+
+        // Bar
+        const color = MBTI_COLORS[type] || '#8b5cf6';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = counts[i] > 0 ? 0.85 : 0.15;
+
+        // Rounded top corners
+        const r = 4;
+        ctx.beginPath();
+        ctx.moveTo(x, padding.top + chartH);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.lineTo(x + barWidth - r, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + r);
+        ctx.lineTo(x + barWidth, padding.top + chartH);
+        ctx.closePath();
+        ctx.fill();
+
+        // Glow effect for non-zero bars
+        if (counts[i] > 0) {
+            ctx.globalAlpha = 0.15;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 12;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        ctx.globalAlpha = 1;
+
+        // Count label on top
+        if (counts[i] > 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = 'bold 11px "Space Grotesk", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(counts[i], x + barWidth / 2, y - 6);
+        }
+
+        // X-axis label
+        ctx.fillStyle = counts[i] > 0 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)';
+        ctx.font = `${counts[i] > 0 ? 'bold' : 'normal'} 9px "Space Grotesk", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(type, x + barWidth / 2, H - padding.bottom + 16);
+    });
+
+    // Group labels
+    const groups = [
+        { label: 'Analysts', start: 0, end: 3, color: '#818cf8' },
+        { label: 'Diplomats', start: 4, end: 7, color: '#f472b6' },
+        { label: 'Sentinels', start: 8, end: 11, color: '#22d3ee' },
+        { label: 'Explorers', start: 12, end: 15, color: '#34d399' },
+    ];
+
+    groups.forEach(g => {
+        const x1 = padding.left + gap * g.start + (gap - barWidth) / 2;
+        const x2 = padding.left + gap * g.end + (gap + barWidth) / 2;
+        const y = H - 8;
+        ctx.fillStyle = g.color;
+        ctx.globalAlpha = 0.5;
+        ctx.font = '8px "Inter", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(g.label, (x1 + x2) / 2, y);
+        ctx.globalAlpha = 1;
+    });
+}
+
+// ========== Update Word Bars ==========
+function updateWordBars(wordFreqs) {
+    if (!wordFreqs || wordFreqs.length === 0) return;
+
+    const top10 = wordFreqs.slice(0, 10);
+    const maxFreq = top10[0][1];
+
+    wordBarsContainer.innerHTML = '';
+
+    top10.forEach(([word, count], idx) => {
+        const pct = (count / maxFreq) * 100;
+        const item = document.createElement('div');
+        item.className = 'word-bar-item';
+        item.style.animationDelay = `${idx * 0.05}s`;
+        item.innerHTML = `
+            <span class="word-bar-label">${word}</span>
+            <div class="word-bar-track">
+                <div class="word-bar-fill" style="width: ${pct}%">
+                    <span class="word-bar-count">${count}</span>
+                </div>
+            </div>
+        `;
+        wordBarsContainer.appendChild(item);
+    });
+}
+
+// ========== Update Dimension Bars ==========
+function updateDimensions(ratios) {
+    // EI
+    const eVal = ratios.EI?.E || 50;
+    const iVal = ratios.EI?.I || 50;
+    document.getElementById('dimE').textContent = eVal + '%';
+    document.getElementById('dimI').textContent = iVal + '%';
+    document.getElementById('dimBarEI').style.width = eVal + '%';
+    updateDimLetters('EI', eVal, iVal);
+
+    // NS
+    const nVal = ratios.NS?.N || 50;
+    const sVal = ratios.NS?.S || 50;
+    document.getElementById('dimN').textContent = nVal + '%';
+    document.getElementById('dimS').textContent = sVal + '%';
+    document.getElementById('dimBarNS').style.width = nVal + '%';
+    updateDimLetters('NS', nVal, sVal);
+
+    // TF
+    const tVal = ratios.TF?.T || 50;
+    const fVal = ratios.TF?.F || 50;
+    document.getElementById('dimT').textContent = tVal + '%';
+    document.getElementById('dimF').textContent = fVal + '%';
+    document.getElementById('dimBarTF').style.width = tVal + '%';
+    updateDimLetters('TF', tVal, fVal);
+
+    // JP
+    const jVal = ratios.JP?.J || 50;
+    const pVal = ratios.JP?.P || 50;
+    document.getElementById('dimJ').textContent = jVal + '%';
+    document.getElementById('dimP').textContent = pVal + '%';
+    document.getElementById('dimBarJP').style.width = jVal + '%';
+    updateDimLetters('JP', jVal, pVal);
+}
+
+function updateDimLetters(dim, leftVal, rightVal) {
+    const container = document.querySelector(`[data-dim="${dim}"]`);
+    if (!container) return;
+    const letters = container.querySelectorAll('.dim-letter');
+    if (letters.length >= 2) {
+        letters[0].className = `dim-letter ${leftVal >= rightVal ? 'active' : 'inactive'}`;
+        letters[1].className = `dim-letter ${rightVal > leftVal ? 'active' : 'inactive'}`;
+    }
+}
+
+// ========== Add Post Rows ==========
+function addPostRows(posts) {
+    posts.forEach(post => {
+        allPosts.push(post);
+        const tr = document.createElement('tr');
+        tr.style.animationDelay = `${Math.random() * 0.2}s`;
+
+        const isComment = post.is_comment || false;
+        const permalink = post.permalink
+            ? `https://www.reddit.com${post.permalink}`
+            : '#';
+
+        const typeBadge = isComment
+            ? '<span class="source-badge comment-badge">💬 Comment</span>'
+            : '<span class="source-badge post-badge">📝 Post</span>';
+
+        const titleText = isComment
+            ? escapeHtml(post.title)
+            : `<a href="${permalink}" target="_blank" rel="noopener">${escapeHtml(post.title)}</a>`;
+
+        tr.innerHTML = `
+            <td style="color:var(--text-muted); font-family:var(--font-mono); font-size:0.78rem;">${allPosts.length}</td>
+            <td>${typeBadge}</td>
+            <td class="post-title">${titleText}</td>
+            <td class="post-author">u/${escapeHtml(post.author)}</td>
+            <td><span class="mbti-badge" data-type="${post.mbti_type}">${post.mbti_type}</span></td>
+            <td class="post-score">▲ ${post.score}</td>
+        `;
+        postsBody.appendChild(tr);
+    });
+}
+
+// ========== Utility ==========
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function showError(msg) {
+    errorToast.textContent = '⚠️ ' + msg;
+    errorToast.classList.add('show');
+    setTimeout(() => errorToast.classList.remove('show'), 4000);
+}
+
+// ========== Handle Resize ==========
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        // Redraw chart if we have data
+        if (dashboard.classList.contains('visible') && allPosts.length > 0) {
+            const dist = {};
+            allPosts.forEach(p => { dist[p.mbti_type] = (dist[p.mbti_type] || 0) + 1; });
+            drawMBTIChart(dist);
+        }
+    }, 250);
+});
+
+</script>
+</body>
+</html>

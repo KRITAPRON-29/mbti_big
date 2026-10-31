@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ทำนายบุคลิกภาพ MBTI ของคุณด้วย AI และ NLP — วิเคราะห์จากข้อความที่คุณเขียน">
+    <title>MBTI Predictor — AI Personality Analysis</title>
+    <link rel="stylesheet" href="/static/predictor_style.css">
+    <link rel="stylesheet" href="/static/nav.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body class="has-nav">
+
+    <!-- Mode Switcher Nav -->
+    <nav class="mode-nav">
+        <a href="/" class="nav-pill">📊 Reddit Analyzer</a>
+        <span class="nav-divider"></span>
+        <a href="/text" class="nav-pill active">🧠 Text Predictor</a>
+    </nav>
+
+    <!-- Animated Background -->
+    <div class="bg-mesh">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="error-toast" id="errorToast"></div>
+
+    <div class="app-container">
+
+        <!-- Hero Section -->
+        <header class="hero">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                NLP-Powered Analysis
+            </div>
+            <h1>MBTI Predictor</h1>
+            <p>วิเคราะห์บุคลิกภาพ MBTI ของคุณผ่าน AI โดยใช้ข้อความที่คุณเขียน — เพียงพิมพ์สิ่งที่คุณคิด แล้วปล่อยให้โมเดล NLP ทำงาน</p>
+        </header>
+
+        <!-- Input Card -->
+        <div class="input-card">
+            <label class="input-label" for="userText">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                เขียนข้อความภาษาอังกฤษเกี่ยวกับตัวคุณ
+            </label>
+            <div class="textarea-wrapper">
+                <textarea 
+                    class="text-input" 
+                    id="userText" 
+                    placeholder="Write something about yourself, your thoughts, opinions, or anything on your mind... The more you write, the more accurate the prediction will be.
+
+Example: I love spending time alone reading books and thinking about abstract concepts. I often find myself lost in deep thoughts about the meaning of life and the universe..."
+                    spellcheck="false"
+                ></textarea>
+            </div>
+            <div class="input-footer">
+                <span class="char-count" id="charCount">0 characters</span>
+                <button class="predict-btn" id="predictBtn" disabled>
+                    <span class="spinner"></span>
+                    <span class="btn-text">Analyze Personality</span>
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Sample Texts -->
+            <div class="samples-section">
+                <div class="samples-label">💡 ลองตัวอย่าง:</div>
+                <div class="sample-chips">
+                    <button class="sample-chip" data-sample="intj">🧠 Analytical Thinker</button>
+                    <button class="sample-chip" data-sample="enfp">🎉 Social Butterfly</button>
+                    <button class="sample-chip" data-sample="isfj">🛡️ Careful Planner</button>
+                    <button class="sample-chip" data-sample="entp">💡 Creative Debater</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <!-- Type Hero -->
+            <div class="type-hero" id="typeHero">
+                <div class="confetti-container" id="confettiContainer"></div>
+                <div class="type-label">Your Personality Type</div>
+                <div class="type-code" id="typeCode"></div>
+                <div class="type-nickname" id="typeNickname"></div>
+                <div class="type-stats">
+                    <div class="stat">
+                        <div class="stat-value" id="statWords">—</div>
+                        <div class="stat-label">Words Analyzed</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statChars">—</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">Dimensions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dimension Cards -->
+            <div class="dimensions-grid" id="dimensionsGrid"></div>
+
+            <!-- Profile Detail Section -->
+            <div class="profile-section" id="profileSection">
+                <!-- Traits -->
+                <div class="profile-card profile-traits">
+                    <div class="profile-card-header">
+                        <span class="profile-icon" id="profileEmoji">🧠</span>
+                        <div>
+                            <h3 class="profile-card-title">ลักษณะนิสัย</h3>
+                            <p class="profile-card-subtitle">Personality Traits</p>
+                        </div>
+                    </div>
+                    <p class="profile-traits-text" id="profileTraits"></p>
+                </div>
+
+                <!-- Strengths & Weaknesses -->
+                <div class="profile-sw-grid">
+                    <div class="profile-card profile-strengths">
+                        <div class="profile-card-header">
+                            <span class="profile-icon">💪</span>
+                            <div>
+                                <h3 class="profile-card-title">จุดแข็ง</h3>
+                                <p class="profile-card-subtitle">Strengths</p>
+                            </div>
+                        </div>
+                        <ul class="profile-list strengths-list" id="profileStrengths"></ul>
+                    </div>
+                    <div class="profile-card profile-weaknesses">
+                        <div class="profile-card-header">
+                            <span class="profile-icon">⚡</span>
+                            <div>
+                                <h3 class="profile-card-title">จุดอ่อน</h3>
+                                <p class="profile-card-subtitle">Weaknesses</p>
+                            </div>
+                        </div>
+                        <ul class="profile-list weaknesses-list" id="profileWeaknesses"></ul>
+                    </div>
+                </div>
+
+                <!-- Development Tips -->
+                <div class="profile-card profile-development">
+                    <div class="profile-card-header">
+                        <span class="profile-icon">🌱</span>
+                        <div>
+                            <h3 class="profile-card-title">แนวทางการพัฒนาตนเอง</h3>
+                            <p class="profile-card-subtitle">Self-Development Tips</p>
+                        </div>
+                    </div>
+                    <ul class="profile-list dev-list" id="profileDevelopment"></ul>
+                </div>
+
+                <!-- Work & Communication -->
+                <div class="profile-wc-grid">
+                    <div class="profile-card profile-work">
+                        <div class="profile-card-header">
+                            <span class="profile-icon">💼</span>
+                            <div>
+                                <h3 class="profile-card-title">วิธีการทำงาน</h3>
+                                <p class="profile-card-subtitle">Work Style</p>
+                            </div>
+                        </div>
+                        <p class="profile-desc-text" id="profileWork"></p>
+                    </div>
+                    <div class="profile-card profile-comm">
+                        <div class="profile-card-header">
+                            <span class="profile-icon">💬</span>
+                            <div>
+                                <h3 class="profile-card-title">การสื่อสาร</h3>
+                                <p class="profile-card-subtitle">Communication Style</p>
+                            </div>
+                        </div>
+                        <p class="profile-desc-text" id="profileComm"></p>
+                    </div>
+                </div>
+
+                <!-- Careers -->
+                <div class="profile-card profile-careers">
+                    <div class="profile-card-header">
+                        <span class="profile-icon">🎯</span>
+                        <div>
+                            <h3 class="profile-card-title">อาชีพที่เหมาะสม</h3>
+                            <p class="profile-card-subtitle">Suitable Careers</p>
+                        </div>
+                    </div>
+                    <div class="career-tags" id="profileCareers"></div>
+                </div>
+                </div>
+
+                <!-- Marketing Tips -->
+                <div class="profile-card profile-marketing" id="profileMarketing" style="display:none;">
+                    <div class="profile-card-header">
+                        <span class="profile-icon">📈</span>
+                        <div>
+                            <h3 class="profile-card-title">กลยุทธ์การตลาด</h3>
+                            <p class="profile-card-subtitle">Marketing Strategy</p>
+                        </div>
+                    </div>
+                    <p class="profile-desc-text" id="marketingApproach" style="margin-bottom:16px;"></p>
+                    <div class="profile-sw-grid">
+                        <div class="profile-card profile-strengths" style="margin-bottom:0;">
+                            <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:10px;">✅ สิ่งที่ควรทำ</h4>
+                            <ul class="profile-list" id="marketingDo"></ul>
+                        </div>
+                        <div class="profile-card profile-weaknesses" style="margin-bottom:0;">
+                            <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:10px;">❌ สิ่งที่ไม่ควรทำ</h4>
+                            <ul class="profile-list" id="marketingDont"></ul>
+                        </div>
+                    </div>
+                    <div class="marketing-extra" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="profile-card" style="margin-bottom:0;">
+                            <h4 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">📝 รูปแบบเนื้อหา</h4>
+                            <p class="profile-desc-text" id="marketingContent" style="font-size:0.85rem;"></p>
+                        </div>
+                        <div class="profile-card" style="margin-bottom:0;">
+                            <h4 style="font-size:0.85rem;font-weight:700;margin-bottom:8px;">🎯 สิ่งที่กระตุ้นการซื้อ</h4>
+                            <p class="profile-desc-text" id="marketingTrigger" style="font-size:0.85rem;"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alternative Types -->
+            <div class="alternatives-section" id="alternativesSection">
+                <div class="alt-header">
+                    <div class="alt-header-left">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><path d="m16 12-4 4-4-4"/><path d="M12 8v8"/>
+                        </svg>
+                        <h3>Other Possible Types</h3>
+                    </div>
+                    <span class="alt-subtitle">Based on dimension probabilities</span>
+                </div>
+                <div class="alt-list" id="altList"></div>
+            </div>
+        </div>
+
+        <!-- Explore All Types Section -->
+        <div class="explore-section" id="exploreSection">
+            <div class="explore-header">
+                <h2 class="explore-title">🔍 สำรวจ MBTI ทั้ง 16 ประเภท</h2>
+                <p class="explore-subtitle">คลิกที่ประเภทที่สนใจเพื่อดูรายละเอียดเชิงลึก</p>
+            </div>
+            <div class="explore-grid" id="exploreGrid"></div>
+        </div>
+
+        <footer class="app-footer">
+            <p>Built with 🧠 SGDClassifier + TF-IDF • MBTI NLP Prediction Model</p>
+        </footer>
+    </div>
+
+    <!-- Type Detail Modal -->
+    <div class="modal-overlay" id="typeModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <div class="modal-header">
+                <span class="modal-emoji" id="modalEmoji"></span>
+                <div>
+                    <h2 class="modal-type-code" id="modalTypeCode"></h2>
+                    <p class="modal-nickname" id="modalNickname"></p>
+                </div>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+<script>
+// ========== Sample Texts ==========
+const SAMPLES = {
+    intj: `I prefer to work independently and develop my own theories about how things work. I find small talk exhausting and would rather have deep, meaningful conversations about ideas and systems. I always plan ahead and enjoy creating efficient strategies. Logic and rational thinking guide most of my decisions, and I often see patterns that others miss. I spend a lot of time reading and researching topics that interest me deeply.`,
+    enfp: `I absolutely love meeting new people and hearing their stories! Every person has something unique to offer, and I find that so fascinating. I'm always coming up with new ideas and projects — sometimes too many at once! I follow my heart when making decisions and I deeply care about making a positive impact on the world. Life is an adventure and I want to experience everything it has to offer!`,
+    isfj: `I find comfort in routine and knowing what to expect. I care deeply about my family and friends, and I always try to be there for them when they need me. I pay close attention to details and like to make sure everything is done correctly. I prefer practical solutions over abstract theories. I remember specific things people have told me and I try to show my love through acts of service.`,
+    entp: `I love debating ideas and playing devil's advocate — not to be mean, but because exploring different perspectives is how I learn! I get bored easily with routine and always need new challenges. I see possibilities everywhere and love connecting seemingly unrelated concepts. Rules are more like guidelines to me, and I think most systems could be improved if people just thought outside the box more.`
+};
+
+// ========== DOM Elements ==========
+const textInput = document.getElementById('userText');
+const charCount = document.getElementById('charCount');
+const predictBtn = document.getElementById('predictBtn');
+const resultsSection = document.getElementById('resultsSection');
+const typeCode = document.getElementById('typeCode');
+const typeNickname = document.getElementById('typeNickname');
+const dimensionsGrid = document.getElementById('dimensionsGrid');
+const errorToast = document.getElementById('errorToast');
+const confettiContainer = document.getElementById('confettiContainer');
+
+// ========== Character Counter ==========
+textInput.addEventListener('input', () => {
+    const len = textInput.value.length;
+    charCount.textContent = `${len} characters`;
+    charCount.className = 'char-count';
+    
+    if (len >= 20) {
+        charCount.classList.add('good');
+        predictBtn.disabled = false;
+    } else {
+        if (len > 0) charCount.classList.add('warning');
+        predictBtn.disabled = true;
+    }
+});
+
+// ========== Sample Chips ==========
+document.querySelectorAll('.sample-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const key = chip.dataset.sample;
+        textInput.value = SAMPLES[key];
+        textInput.dispatchEvent(new Event('input'));
+        textInput.focus();
+    });
+});
+
+// ========== Prediction ==========
+predictBtn.addEventListener('click', predict);
+
+// Also allow Ctrl+Enter
+textInput.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key === 'Enter' && !predictBtn.disabled) {
+        predict();
+    }
+});
+
+async function predict() {
+    const text = textInput.value.trim();
+    if (text.length < 20) return;
+
+    // Loading state
+    predictBtn.classList.add('loading');
+    predictBtn.disabled = true;
+
+    try {
+        const res = await fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            showError(data.error || 'เกิดข้อผิดพลาด');
+            return;
+        }
+
+        renderResults(data);
+
+    } catch (err) {
+        showError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+    } finally {
+        predictBtn.classList.remove('loading');
+        predictBtn.disabled = false;
+    }
+}
+
+// ========== Render Results ==========
+function renderResults(data) {
+    // Show section
+    resultsSection.classList.add('visible');
+
+    // Type hero
+    typeCode.textContent = data.mbti_type;
+    typeNickname.textContent = `"${data.nickname}"`;
+    document.getElementById('statWords').textContent = data.words_count.toLocaleString();
+    document.getElementById('statChars').textContent = data.text_length.toLocaleString();
+
+    // Reset animation
+    typeCode.style.animation = 'none';
+    typeCode.offsetHeight; // force reflow
+    typeCode.style.animation = '';
+
+    // Confetti
+    launchConfetti();
+
+    // Dimension cards
+    dimensionsGrid.innerHTML = '';
+
+    const dimOrder = ['EI', 'NS', 'TF', 'JP'];
+    const dimLabels = {
+        EI: ['Extraversion', 'Introversion'],
+        NS: ['Intuition', 'Sensing'],
+        TF: ['Thinking', 'Feeling'],
+        JP: ['Judging', 'Perceiving']
+    };
+
+    dimOrder.forEach(dim => {
+        const d = data.dimensions[dim];
+        const pred = d.prediction;
+        const info = d.details[pred];
+        const keys = Object.keys(d.details);
+        const leftKey = keys[0];
+        const rightKey = keys[1];
+        const leftConf = d.details[leftKey].confidence;
+        const rightConf = d.details[rightKey].confidence;
+
+        // Determine which side the bar fills from
+        const fillKey = pred;
+        const fillConf = info.confidence;
+
+        const card = document.createElement('div');
+        card.className = 'dimension-card';
+        card.innerHTML = `
+            <div class="dim-header">
+                <span class="dim-emoji">${info.emoji}</span>
+                <span class="dim-tag tag-${pred}">${pred}</span>
+            </div>
+            <div class="dim-result-letter letter-${pred}">${pred}</div>
+            <div class="dim-name">${info.name}</div>
+            <div class="confidence-bar-wrapper">
+                <div class="confidence-labels">
+                    <span>${leftKey} ${leftConf}%</span>
+                    <span>${rightConf}% ${rightKey}</span>
+                </div>
+                <div class="confidence-bar">
+                    <div class="confidence-fill fill-${leftKey}" style="width: 0%" data-width="${leftConf}%"></div>
+                </div>
+            </div>
+            <div class="dim-desc">${info.desc}</div>
+        `;
+
+        dimensionsGrid.appendChild(card);
+    });
+
+    // Animate confidence bars
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            document.querySelectorAll('.confidence-fill').forEach(bar => {
+                bar.style.width = bar.dataset.width;
+            });
+        }, 100);
+    });
+
+    // Render alternative types
+    renderAlternatives(data.alternatives, data.primary_probability);
+
+    // Render detailed profile
+    if (data.profile) {
+        renderProfile(data.profile);
+    }
+
+    // Scroll to results
+    setTimeout(() => {
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+}
+
+// ========== Render Profile ==========
+function renderProfile(profile) {
+    const section = document.getElementById('profileSection');
+    section.style.display = 'block';
+
+    // Emoji & Traits
+    document.getElementById('profileEmoji').textContent = profile.emoji || '🧠';
+    document.getElementById('profileTraits').textContent = profile.traits || '';
+
+    // Strengths
+    const sList = document.getElementById('profileStrengths');
+    sList.innerHTML = '';
+    (profile.strengths || []).forEach(s => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="list-icon">✅</span> ${s}`;
+        sList.appendChild(li);
+    });
+
+    // Weaknesses
+    const wList = document.getElementById('profileWeaknesses');
+    wList.innerHTML = '';
+    (profile.weaknesses || []).forEach(w => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="list-icon">⚠️</span> ${w}`;
+        wList.appendChild(li);
+    });
+
+    // Development
+    const dList = document.getElementById('profileDevelopment');
+    dList.innerHTML = '';
+    (profile.development || []).forEach(d => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="list-icon">🌱</span> ${d}`;
+        dList.appendChild(li);
+    });
+
+    // Work & Communication
+    document.getElementById('profileWork').textContent = profile.work_style || '';
+    document.getElementById('profileComm').textContent = profile.communication || '';
+
+    // Careers
+    const careerDiv = document.getElementById('profileCareers');
+    careerDiv.innerHTML = '';
+    (profile.careers || []).forEach(c => {
+        const tag = document.createElement('span');
+        tag.className = 'career-tag';
+        tag.textContent = c;
+        careerDiv.appendChild(tag);
+    });
+
+    // Marketing
+    const mkt = profile.marketing;
+    const mktSection = document.getElementById('profileMarketing');
+    if (mkt) {
+        mktSection.style.display = 'block';
+        document.getElementById('marketingApproach').textContent = mkt.approach || '';
+        const doList = document.getElementById('marketingDo');
+        doList.innerHTML = '';
+        (mkt.do || []).forEach(d => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="list-icon">✅</span> ${d}`;
+            doList.appendChild(li);
+        });
+        const dontList = document.getElementById('marketingDont');
+        dontList.innerHTML = '';
+        (mkt.dont || []).forEach(d => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="list-icon">❌</span> ${d}`;
+            dontList.appendChild(li);
+        });
+        document.getElementById('marketingContent').textContent = mkt.content_style || '';
+        document.getElementById('marketingTrigger').textContent = mkt.buying_trigger || '';
+    } else {
+        mktSection.style.display = 'none';
+    }
+}
+
+// ========== Render Alternatives ==========
+function renderAlternatives(alternatives, primaryProb) {
+    const altList = document.getElementById('altList');
+    const altSection = document.getElementById('alternativesSection');
+    altList.innerHTML = '';
+
+    if (!alternatives || alternatives.length === 0) {
+        altSection.style.display = 'none';
+        return;
+    }
+    altSection.style.display = 'block';
+
+    // Color map for each MBTI letter
+    const letterColors = {
+        'E': '#f59e0b', 'I': '#818cf8',
+        'N': '#a78bfa', 'S': '#34d399',
+        'T': '#60a5fa', 'F': '#f472b6',
+        'J': '#2dd4bf', 'P': '#fbbf24'
+    };
+
+    alternatives.forEach((alt, idx) => {
+        const isClose = alt.probability >= primaryProb * 0.5;
+        const row = document.createElement('div');
+        row.className = 'alt-row';
+        row.style.animationDelay = `${0.5 + idx * 0.1}s`;
+
+        // Build colored letters
+        const coloredType = alt.type.split('').map(letter =>
+            `<span style="color: ${letterColors[letter] || '#f1f0f5'}">${letter}</span>`
+        ).join('');
+
+        row.innerHTML = `
+            <div class="alt-rank">#${idx + 2}</div>
+            <div class="alt-type-info">
+                <div class="alt-type-code">${coloredType}</div>
+                <div class="alt-type-nickname">${alt.nickname}</div>
+            </div>
+            <div class="alt-prob-section">
+                ${isClose ? '<span class="alt-close-badge">Close Match</span>' : ''}
+                <div class="alt-prob-bar-wrapper">
+                    <div class="alt-prob-bar">
+                        <div class="alt-prob-fill" style="width: 0%" data-width="${Math.min(alt.probability / primaryProb * 100, 100)}%"></div>
+                    </div>
+                </div>
+                <div class="alt-prob-value">${alt.probability}%</div>
+            </div>
+        `;
+        altList.appendChild(row);
+    });
+
+    // Animate probability bars
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            document.querySelectorAll('.alt-prob-fill').forEach(bar => {
+                bar.style.width = bar.dataset.width;
+            });
+        }, 600);
+    });
+}
+
+// ========== Confetti ==========
+function launchConfetti() {
+    confettiContainer.innerHTML = '';
+    const colors = ['#8b5cf6', '#ec4899', '#22d3ee', '#f59e0b', '#10b981', '#f43f5e', '#6366f1'];
+    
+    for (let i = 0; i < 40; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.top = Math.random() * 30 + '%';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.animationDelay = Math.random() * 1 + 's';
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.width = (5 + Math.random() * 8) + 'px';
+        piece.style.height = (5 + Math.random() * 8) + 'px';
+        piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+        confettiContainer.appendChild(piece);
+    }
+}
+
+// ========== Error Toast ==========
+function showError(msg) {
+    errorToast.textContent = '⚠️ ' + msg;
+    errorToast.classList.add('show');
+    setTimeout(() => errorToast.classList.remove('show'), 3500);
+}
+
+// ========== Explore All Types ==========
+const EXPLORE_COLORS = {
+    'INTJ': '#6366f1', 'INTP': '#818cf8', 'ENTJ': '#8b5cf6', 'ENTP': '#a78bfa',
+    'INFJ': '#c084fc', 'INFP': '#e879f9', 'ENFJ': '#f472b6', 'ENFP': '#fb7185',
+    'ISTJ': '#38bdf8', 'ISFJ': '#22d3ee', 'ESTJ': '#2dd4bf', 'ESFJ': '#34d399',
+    'ISTP': '#4ade80', 'ISFP': '#a3e635', 'ESTP': '#facc15', 'ESFP': '#fb923c',
+};
+
+let allTypesData = null;
+
+async function loadExploreTypes() {
+    try {
+        const res = await fetch('/api/types');
+        allTypesData = await res.json();
+        renderExploreGrid();
+    } catch (e) {
+        console.error('Failed to load types:', e);
+    }
+}
+
+function renderExploreGrid() {
+    const grid = document.getElementById('exploreGrid');
+    if (!allTypesData) return;
+
+    const groups = [
+        { label: 'Analysts (NT)', types: ['INTJ', 'INTP', 'ENTJ', 'ENTP'] },
+        { label: 'Diplomats (NF)', types: ['INFJ', 'INFP', 'ENFJ', 'ENFP'] },
+        { label: 'Sentinels (SJ)', types: ['ISTJ', 'ISFJ', 'ESTJ', 'ESFJ'] },
+        { label: 'Explorers (SP)', types: ['ISTP', 'ISFP', 'ESTP', 'ESFP'] },
+    ];
+
+    grid.innerHTML = '';
+    groups.forEach(group => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'explore-group';
+        groupEl.innerHTML = `<div class="explore-group-label">${group.label}</div>`;
+        const row = document.createElement('div');
+        row.className = 'explore-group-row';
+
+        group.types.forEach(code => {
+            const t = allTypesData[code];
+            if (!t) return;
+            const btn = document.createElement('button');
+            btn.className = 'explore-btn';
+            btn.style.setProperty('--btn-accent', EXPLORE_COLORS[code] || '#8b5cf6');
+            btn.innerHTML = `
+                <span class="explore-btn-emoji">${t.emoji}</span>
+                <span class="explore-btn-code">${code}</span>
+                <span class="explore-btn-nick">${t.nickname}</span>
+            `;
+            btn.addEventListener('click', () => openTypeModal(code, t));
+            row.appendChild(btn);
+        });
+
+        groupEl.appendChild(row);
+        grid.appendChild(groupEl);
+    });
+}
+
+// ========== Type Detail Modal ==========
+const modal = document.getElementById('typeModal');
+const modalClose = document.getElementById('modalClose');
+
+function openTypeModal(code, profile) {
+    document.getElementById('modalEmoji').textContent = profile.emoji || '🧠';
+    document.getElementById('modalTypeCode').textContent = code;
+    document.getElementById('modalNickname').textContent = `"${profile.nickname}"`;
+
+    const body = document.getElementById('modalBody');
+    body.innerHTML = `
+        <div class="modal-section">
+            <h3>🧠 ลักษณะนิสัย</h3>
+            <p>${profile.traits || ''}</p>
+        </div>
+        <div class="modal-two-col">
+            <div class="modal-section modal-strengths">
+                <h3>💪 จุดแข็ง</h3>
+                <ul>${(profile.strengths || []).map(s => `<li><span class="list-icon">✅</span> ${s}</li>`).join('')}</ul>
+            </div>
+            <div class="modal-section modal-weaknesses">
+                <h3>⚡ จุดอ่อน</h3>
+                <ul>${(profile.weaknesses || []).map(w => `<li><span class="list-icon">⚠️</span> ${w}</li>`).join('')}</ul>
+            </div>
+        </div>
+        <div class="modal-section">
+            <h3>🌱 แนวทางการพัฒนาตนเอง</h3>
+            <ul>${(profile.development || []).map(d => `<li><span class="list-icon">🌱</span> ${d}</li>`).join('')}</ul>
+        </div>
+        <div class="modal-two-col">
+            <div class="modal-section">
+                <h3>💼 วิธีการทำงาน</h3>
+                <p>${profile.work_style || ''}</p>
+            </div>
+            <div class="modal-section">
+                <h3>💬 การสื่อสาร</h3>
+                <p>${profile.communication || ''}</p>
+            </div>
+        </div>
+        <div class="modal-section">
+            <h3>🎯 อาชีพที่เหมาะสม</h3>
+            <div class="career-tags">${(profile.careers || []).map(c => `<span class="career-tag">${c}</span>`).join('')}</div>
+        </div>
+        ${profile.marketing ? `
+        <div class="modal-section modal-marketing">
+            <h3>📈 กลยุทธ์การตลาด</h3>
+            <p style="margin-bottom:14px;">${profile.marketing.approach}</p>
+            <div class="modal-two-col">
+                <div class="modal-section modal-strengths" style="margin-bottom:0;">
+                    <h4 style="font-size:0.88rem;font-weight:700;margin-bottom:8px;">✅ สิ่งที่ควรทำ</h4>
+                    <ul>${(profile.marketing.do || []).map(d => `<li><span class="list-icon">✅</span> ${d}</li>`).join('')}</ul>
+                </div>
+                <div class="modal-section modal-weaknesses" style="margin-bottom:0;">
+                    <h4 style="font-size:0.88rem;font-weight:700;margin-bottom:8px;">❌ สิ่งที่ไม่ควรทำ</h4>
+                    <ul>${(profile.marketing.dont || []).map(d => `<li><span class="list-icon">❌</span> ${d}</li>`).join('')}</ul>
+                </div>
+            </div>
+            <div class="modal-two-col" style="margin-top:12px;">
+                <div class="modal-section" style="margin-bottom:0;">
+                    <h4 style="font-size:0.85rem;font-weight:700;margin-bottom:6px;">📝 รูปแบบเนื้อหา</h4>
+                    <p style="font-size:0.85rem;line-height:1.6;color:var(--text-secondary);">${profile.marketing.content_style}</p>
+                </div>
+                <div class="modal-section" style="margin-bottom:0;">
+                    <h4 style="font-size:0.85rem;font-weight:700;margin-bottom:6px;">🎯 สิ่งที่กระตุ้นการซื้อ</h4>
+                    <p style="font-size:0.85rem;line-height:1.6;color:var(--text-secondary);">${profile.marketing.buying_trigger}</p>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+    `;
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+modalClose.addEventListener('click', closeModal);
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
+
+function closeModal() {
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// Load types on page load
+loadExploreTypes();
+
+</script>
+</body>
+</html>
